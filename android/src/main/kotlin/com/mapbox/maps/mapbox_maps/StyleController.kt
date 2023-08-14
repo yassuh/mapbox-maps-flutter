@@ -3,8 +3,6 @@ package com.mapbox.maps.mapbox_maps
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import com.mapbox.bindgen.Value
-import android.os.Handler
-import android.os.Looper
 import com.mapbox.common.Logger
 import com.mapbox.maps.*
 import com.mapbox.maps.extension.localization.localizeLabels
@@ -247,36 +245,20 @@ class StyleController(private val mapboxMap: MapboxMap) : FLTMapInterfaces.Style
     }
   }
 
-
-
   override fun addStyleSource(
-      sourceId: String,
-      properties: String,
-      result: FLTMapInterfaces.Result<Void>
+    sourceId: String,
+    properties: String,
+    result: FLTMapInterfaces.Result<Void>
   ) {
-      val timeoutMillis = 5000L
-      val timeoutHandler = Handler(Looper.getMainLooper())
-
-      val timeoutRunnable = Runnable {
-          result.error(Throwable("Operation timed out"))
+    mapboxMap.getStyle {
+      val expected = it.addStyleSource(sourceId, properties.toValue())
+      if (expected.isError) {
+        result.error(Throwable(expected.error))
+      } else {
+        result.success(null)
       }
-
-      // Schedule the timeout
-      timeoutHandler.postDelayed(timeoutRunnable, timeoutMillis)
-
-      mapboxMap.getStyle {
-          val expected = it.addStyleSource(sourceId, properties.toValue())
-          if (expected.isError) {
-              result.error(Throwable(expected.error))
-          } else {
-              result.success(null)
-          }
-
-          // If the function completes before timeout, remove the callback
-          timeoutHandler.removeCallbacks(timeoutRunnable)
-      }
+    }
   }
-
 
   override fun getStyleSourceProperty(
     sourceId: String,
