@@ -2,6 +2,8 @@ package com.mapbox.maps.mapbox_maps
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.os.Handler
+import android.os.Looper
 import com.mapbox.bindgen.Value
 import com.mapbox.common.Logger
 import com.mapbox.maps.*
@@ -250,6 +252,16 @@ class StyleController(private val mapboxMap: MapboxMap) : FLTMapInterfaces.Style
     properties: String,
     result: FLTMapInterfaces.Result<Void>
   ) {
+    val timeoutMillis = 5000L
+    val timeoutHandler = Handler(Looper.getMainLooper())
+
+    val timeoutRunnable = Runnable {
+      result.error(Throwable("Operation timed out"))
+    }
+
+    // Schedule the timeout
+    timeoutHandler.postDelayed(timeoutRunnable, timeoutMillis)
+
     mapboxMap.getStyle {
       val expected = it.addStyleSource(sourceId, properties.toValue())
       if (expected.isError) {
@@ -257,6 +269,9 @@ class StyleController(private val mapboxMap: MapboxMap) : FLTMapInterfaces.Style
       } else {
         result.success(null)
       }
+
+      // If the function completes before timeout, remove the callback
+      timeoutHandler.removeCallbacks(timeoutRunnable)
     }
   }
 
