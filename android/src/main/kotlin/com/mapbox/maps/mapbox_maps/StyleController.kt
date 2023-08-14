@@ -1,11 +1,10 @@
 package com.mapbox.maps.mapbox_maps
 
 import android.graphics.Bitmap
-import kotlinx.coroutines.*
-import kotlin.coroutines.resume
-import kotlin.coroutines.suspendCoroutine
 import android.graphics.BitmapFactory
 import com.mapbox.bindgen.Value
+import android.os.Handler
+import android.os.Looper
 import com.mapbox.common.Logger
 import com.mapbox.maps.*
 import com.mapbox.maps.extension.localization.localizeLabels
@@ -255,22 +254,16 @@ class StyleController(private val mapboxMap: MapboxMap) : FLTMapInterfaces.Style
       properties: String,
       result: FLTMapInterfaces.Result<Void>
   ) {
-      CoroutineScope(Dispatchers.Main).launch {
-          try {
-              withTimeout(5000L) { // 5 seconds timeout
-                  addStyleSourceSuspend(sourceId, properties, result)
-              }
-          } catch (e: TimeoutCancellationException) {
-              result.error(Throwable("Operation timed out"))
-          }
-      }
-  }
+      val timeoutMillis = 5000L
+      val timeoutHandler = Handler(Looper.getMainLooper())
 
-  private suspend fun addStyleSourceSuspend(
-      sourceId: String,
-      properties: String,
-      result: FLTMapInterfaces.Result<Void>
-  ) = suspendCoroutine<Unit> { continuation ->
+      val timeoutRunnable = Runnable {
+          result.error(Throwable("Operation timed out"))
+      }
+
+      // Schedule the timeout
+      timeoutHandler.postDelayed(timeoutRunnable, timeoutMillis)
+
       mapboxMap.getStyle {
           val expected = it.addStyleSource(sourceId, properties.toValue())
           if (expected.isError) {
@@ -278,7 +271,9 @@ class StyleController(private val mapboxMap: MapboxMap) : FLTMapInterfaces.Style
           } else {
               result.success(null)
           }
-          continuation.resume(Unit)
+
+          // If the function completes before timeout, remove the callback
+          timeoutHandler.removeCallbacks(timeoutRunnable)
       }
   }
 
