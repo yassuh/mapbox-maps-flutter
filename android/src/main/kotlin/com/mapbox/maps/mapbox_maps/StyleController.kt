@@ -1,6 +1,9 @@
 package com.mapbox.maps.mapbox_maps
 
 import android.graphics.Bitmap
+import kotlinx.coroutines.*
+import kotlin.coroutines.resume
+import kotlin.coroutines.suspendCoroutine
 import android.graphics.BitmapFactory
 import com.mapbox.bindgen.Value
 import com.mapbox.common.Logger
@@ -245,20 +248,40 @@ class StyleController(private val mapboxMap: MapboxMap) : FLTMapInterfaces.Style
     }
   }
 
+
+
   override fun addStyleSource(
-    sourceId: String,
-    properties: String,
-    result: FLTMapInterfaces.Result<Void>
+      sourceId: String,
+      properties: String,
+      result: FLTMapInterfaces.Result<Void>
   ) {
-    mapboxMap.getStyle {
-      val expected = it.addStyleSource(sourceId, properties.toValue())
-      if (expected.isError) {
-        result.error(Throwable(expected.error))
-      } else {
-        result.success(null)
+      CoroutineScope(Dispatchers.Main).launch {
+          try {
+              withTimeout(5000L) { // 5 seconds timeout
+                  addStyleSourceSuspend(sourceId, properties, result)
+              }
+          } catch (e: TimeoutCancellationException) {
+              result.error(Throwable("Operation timed out"))
+          }
       }
-    }
   }
+
+  private suspend fun addStyleSourceSuspend(
+      sourceId: String,
+      properties: String,
+      result: FLTMapInterfaces.Result<Void>
+  ) = suspendCoroutine<Unit> { continuation ->
+      mapboxMap.getStyle {
+          val expected = it.addStyleSource(sourceId, properties.toValue())
+          if (expected.isError) {
+              result.error(Throwable(expected.error))
+          } else {
+              result.success(null)
+          }
+          continuation.resume(Unit)
+      }
+  }
+
 
   override fun getStyleSourceProperty(
     sourceId: String,
