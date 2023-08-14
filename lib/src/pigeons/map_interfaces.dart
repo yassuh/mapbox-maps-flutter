@@ -5925,13 +5925,19 @@ class StyleManager {
   }
 
   Future<void> addStyleSource(
-      String arg_sourceId, String arg_properties) async {
+    String arg_sourceId,
+    String arg_properties,
+  ) async {
     final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
         'dev.flutter.pigeon.StyleManager.addStyleSource', codec,
         binaryMessenger: _binaryMessenger);
-    final Map<Object?, Object?>? replyMap =
-        await channel.send(<Object?>[arg_sourceId, arg_properties])
-            as Map<Object?, Object?>?;
+
+    final Map<Object?, Object?>? replyMap = await channel
+        .send(<Object?>[arg_sourceId, arg_properties]).timeout(
+            Duration(seconds: 5), onTimeout: () {
+      throw TimeoutException('Operation exceeded the 5 seconds limit');
+    }) as Map<Object?, Object?>?;
+
     if (replyMap == null) {
       throw PlatformException(
         code: 'channel-error',
