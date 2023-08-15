@@ -5,7 +5,6 @@ import android.graphics.BitmapFactory
 import com.mapbox.bindgen.Value
 import com.mapbox.common.Logger
 import com.mapbox.maps.*
-import java.util.concurrent.*
 import com.mapbox.maps.extension.localization.localizeLabels
 import com.mapbox.maps.extension.style.layers.properties.generated.ProjectionName
 import com.mapbox.maps.extension.style.projection.generated.Projection
@@ -252,22 +251,11 @@ class StyleController(private val mapboxMap: MapboxMap) : FLTMapInterfaces.Style
     result: FLTMapInterfaces.Result<Void>
   ) {
     mapboxMap.getStyle {
-      val executor = Executors.newSingleThreadExecutor()
-      val future = executor.submit(Callable {
-        it.addStyleSource(sourceId, properties.toValue())
-      })
-
-      try {
-        val expected = future.get(5, TimeUnit.SECONDS)  // Adjust the timeout as needed
-        if (expected.isError) {
-          result.error(Throwable(expected.error))
-        } else {
-          result.success(null)
-        }
-      } catch (e: TimeoutException) {
-        result.error(Throwable("Operation timed out"))
-      } finally {
-        executor.shutdown()  // Always shut down your executor!
+      val expected = it.addStyleSource(sourceId, properties.toValue())
+      if (expected.isError) {
+        result.error(Throwable(expected.error))
+      } else {
+        result.success(null)
       }
     }
   }
